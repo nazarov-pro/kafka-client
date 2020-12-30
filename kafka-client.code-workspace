@@ -28,6 +28,14 @@
 					"CONFIG_FILE": "${workspaceFolder}/configs/app/config.yaml"
 				},
 				"args": []
+			},
+			{
+				"name": "Launch Kafka Admin",
+				"type": "go",
+				"request": "launch",
+				"mode": "auto",
+				"program": "${workspaceFolder}/cmd/admin/main.go",
+				"args": ["-mode", "create", "-brokerUrl", "localhost:9092", "-topic", "test"]
 			}
 		]
 	},

@@ -8,23 +8,23 @@ import (
 )
 
 // Config app configs
-var Config *viper.Viper = generate()
+var Config *viper.Viper
 
-func generate() *viper.Viper {
-	conf := viper.New()
+// LoadConfiguration loads env vars and other configurations
+func LoadConfiguration() {
+	Config = viper.New()
 	confFile := os.Getenv("CONFIG_FILE")
 	if confFile != "ENV_ONLY" {
 		if confFile == "" {
 			confFile = `configs/app/config.yaml`
 		}
-		conf.SetConfigFile(confFile)
-		err := conf.ReadInConfig()
+		Config.SetConfigFile(confFile)
+		err := Config.ReadInConfig()
 		if err != nil {
 			panic(err)
 		}
 	}
-	conf.SetEnvPrefix("_")
-	conf.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
-	conf.AutomaticEnv()
-	return conf
+	Config.SetEnvPrefix("_")
+	Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+	Config.AutomaticEnv()
 }

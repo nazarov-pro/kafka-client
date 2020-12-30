@@ -15,10 +15,16 @@ import (
 
 func main() {
 	fmt.Println("Producer app starting...")
+	conf.LoadConfiguration()
+
 	var g run.Group
+	// kafka producer
 	{
 		ctx, cancel := context.WithCancel(context.Background())
-		w := conf.NewWriter(conf.Config.GetString("kafka.producer.topicName"))
+		w := conf.NewWriter(
+			conf.Config.GetStringSlice("kafka.producer.brokerUrls"),
+			conf.Config.GetString("kafka.producer.topicName"),
+		)
 		g.Add(func() error {
 			for i := 0; i < 10; i++ {
 				key := fmt.Sprintf("KEY-%d", i)

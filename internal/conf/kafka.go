@@ -1,7 +1,6 @@
 package conf
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -19,10 +18,9 @@ func newDialer() *kafka.Dialer {
 }
 
 // NewWriter - kafka writer for producing messages
-func NewWriter(topicName string) *kafka.Writer {
-	brokerUrls := Config.GetStringSlice("kafka.producer.brokerUrls")
+func NewWriter(brokerURLs []string, topicName string) *kafka.Writer {
 	w := kafka.NewWriter(kafka.WriterConfig{
-		Brokers:  brokerUrls,
+		Brokers:  brokerURLs,
 		Topic:    topicName,
 		Balancer: &kafka.LeastBytes{},
 		Dialer:   dialer,
@@ -31,40 +29,63 @@ func NewWriter(topicName string) *kafka.Writer {
 }
 
 // NewReader - kafka reader for consuming messages
-func NewReader(topicName string, groupID string) *kafka.Reader {
-	brokerUrls := Config.GetStringSlice("kafka.consumer.brokerUrls")
+func NewReader(brokerURLs []string, topicName string, groupID string) *kafka.Reader {
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:        brokerUrls,
+		Brokers:        brokerURLs,
 		GroupID:        groupID,
 		Topic:          topicName,
 		MinBytes:       1,
 		MaxBytes:       10e6,
 		CommitInterval: time.Second,
 		Dialer:         dialer,
-		SessionTimeout: 5 * time.Second,
 	})
 	return r
 }
 
-// CreateTopics - generating topics which defined in config
-func CreateTopics() {
-	topics := Config.GetStringMapString("kafka.admin.topics")
-	for _, value := range topics {
-		err := CreateTopic(extractTopicDetailsFromPattern(value))
-		if err != nil {
-			fmt.Printf("Error occured %v\n", err)
+// CreateTopicWithPattern creating topic with pattern '{topicName}:{partitions}:{replicas}'
+func CreateTopicWithPattern(brokerURL, topic string) error {
+	topicName, partitions, replicas := extractTopicDetailsFromPattern(topic)
+	return CreateTopic(brokerURL, topicName, partitions, replicas)
+}
+
+// TopicInfo - information about topic
+type TopicInfo struct {
+	TopicName  string
+	Partitions int
+	Replicas   int
+	LeaderID     int
+}
+
+//FetchTopicDetails - fetching topic details
+func FetchTopicDetails(brokerURL, topic string) (*TopicInfo, error) {
+	conn, err := kafka.Dial("tcp", brokerURL)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	topic, _, _  = extractTopicDetailsFromPattern(topic)
+	partitions, err := conn.ReadPartitions(topic)
+	if err != nil {
+		return nil, err
+	}
+	replicas := make(map[int]bool)
+	leader := 0
+	for _, partition := range partitions {
+		leader = partition.Leader.ID
+		for _, broker := range partition.Replicas {
+			replicas[broker.ID] = true
 		}
 	}
+	return &TopicInfo{TopicName: topic, Partitions: len(partitions), Replicas: len(replicas), LeaderID: leader}, nil
 }
 
 // CreateTopic - creates topics with topic configs
-func CreateTopic(topicName string, partitions, replicas int) error {
-	conn, err := kafka.Dial("tcp", Config.GetString("kafka.admin.brokerUrl"))
+func CreateTopic(brokerURL, topicName string, partitions, replicas int) error {
+	conn, err := kafka.Dial("tcp", brokerURL)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-	fmt.Printf("Creating %s topic with %d partition(s) and %d replica(s) if not exist.\n", topicName, partitions, replicas)
 	return conn.CreateTopics(
 		kafka.TopicConfig{
 			Topic:             topicName,
@@ -74,12 +95,23 @@ func CreateTopic(topicName string, partitions, replicas int) error {
 	)
 }
 
+//DeleteTopic - removes topic
+func DeleteTopic(brokerURL, topic string) error {
+	conn, err := kafka.Dial("tcp", brokerURL)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	topic, _, _ = extractTopicDetailsFromPattern(topic)
+	return conn.DeleteTopics(topic)
+}
+
 func extractTopicDetailsFromPattern(pattern string) (string, int, int) {
 	var (
 		items      = strings.Split(pattern, ":")
 		topicName  = items[0]
-		partitions = Config.GetInt("kafka.admin.defaults.partitions")
-		replicas   = Config.GetInt("kafka.admin.defaults.replicas")
+		partitions = 1
+		replicas   = 1
 	)
 	switch len(items) {
 	case 3:

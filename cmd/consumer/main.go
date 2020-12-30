@@ -14,21 +14,19 @@ import (
 
 func main() {
 	fmt.Println("Consumer app is starting...")
-	if conf.Config.GetBool("kafka.admin.createTopics") {
-		conf.CreateTopics()
-	}
+	conf.LoadConfiguration()
 	
 	var g run.Group
 	//Consumer
 	{
 		ctx, cancel := context.WithCancel(context.Background())
 		r := conf.NewReader(
+			conf.Config.GetStringSlice("kafka.consumer.brokerUrls"),
 			conf.Config.GetString("kafka.consumer.topicName"),
 			conf.Config.GetString("kafka.consumer.groupId"),
 		)
 		g.Add(
 			func() error {
-				
 				return consumer.ConsumeMessages(ctx, r)
 			}, func(error) {
 				cancel()

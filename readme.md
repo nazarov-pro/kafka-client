@@ -7,7 +7,7 @@ Requirements:
 
 ## Kafka Producer ##
 
-Follow steps below for test kafka producer:
+Follow steps below for testing kafka producer:
 
 - check `configs/app/config.yaml` file set config parameters
 - then execute `make start-producer`
@@ -21,7 +21,7 @@ PS: it will send 10 test messages to specified topic in `configs/app/config.yaml
 
 ## Kafka Consumer ##
 
-Follow steps below for test kafka consumer:
+Follow steps below for testing kafka consumer:
 
 - check configs/app/config.yaml file set config parameters
 - then execute `make start-consumer`
@@ -36,12 +36,18 @@ PS: it will consume messages and print key and value as string format untill you
 
 ## Kafka Admin ##
 
-Kafka admin will create topics if topic is not exist in kafka. It will trigger with `kafka.admin.createTopics`-property, defined in config.
+Kafka admin tool, can manage kafka topics (create, info, delete). Parameters are below:
 
-Properties:
+- mode - [string] available values:
+  - info - shows info about the topic (default)
+  - create - creates topic
+  - delete - deletes topic
 
-- kafka.admin.brokerUrl - [string] broker url, specify lead broker url
-- kafka.admin.defaults.partitions - [int] default partition size for the topic (default is 1)
-- kafka.admin.defaults.replicas - [int] default replication factor size for the topic (default is 1)
-- kafka.admin.createTopics - [bool] will create topics automatically in `kafka.admin.topics` config group.
-- kafka.admin.topics.topicName - [string] as template `{topicName}:{partitionSize}:{replicaSize}`, if partition size or replicaSize not defined it will use defaults.
+- brokerUrl - [string] describes kafka lead url
+- topic - [string] describes topic, when creating topic you can specify topic details with this pattern `{topicName}:{partitions}:{replicas}`
+
+Available commands:
+
+- for deleting the topic `make -e MODE="delete" BROKER_URL="localhost:9092" TOPIC="test" start-admin`
+- for creating the topic with 5 partiotions and 1 replicas `make -e MODE="create" BROKER_URL="localhost:9092" TOPIC="test:5:1" start-admin`
+- for fetching info abot the topic `make -e MODE="info" BROKER_URL="localhost:9092" TOPIC="test" start-admin`
